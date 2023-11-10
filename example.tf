@@ -1,30 +1,118 @@
 provider "azurerm" {
-  features = {}
+  features {}
+  subscription_id   = "d115ca25-a8e8-4afd-960b-135f53fcd450"
+  tenant_id         = "d1bd4750-0901-4d48-a8a0-bf61cbbd3a99"
+  client_id         = "c7b7fe63-197b-488f-b59c-bc8c9e819811"
+  client_secret     = "etL8Q~NWIjIR7u2d7mBkdtUMfkeqeHx1gKCu4dki"
 }
 
+
+# Define variables
+variable "resource_group_name" {
+  description = "TestAZmyResourceGroupUser Azure Resource Group"
+  default     = "TestAZmyResourceGroupUser"
+}
+
+
+variable "databricks_workspace_name" {
+  description = "TestAZmyDatabricksWorkspaceUser Azure Databricks Workspace"
+  default     = "TestAZmyDatabricksWorkspaceUser"
+}
+
+
+variable "data_factory_name" {
+  description = "TestAZmyDataFactoryUser Azure Data Factory"
+  default     = "TestAZmyDataFactoryUser"
+}
+
+
+variable "vm_name" {
+  description = "TestAZmyLinuxVMUser Azure Linux VM"
+  default     = "TestAZmyLinuxVMUser"
+}
+
+
+# Create an Azure Resource Group
 resource "azurerm_resource_group" "example" {
-  name     = "dataplatform-resource-group"
-  location = "East US"
+  name     = var.resource_group_name
+  location = "East US" # Change this to your desired region
 }
 
-resource "azurerm_storage_account" "example" {
-  name                     = "dataplatform_exampledatalakestorage"
-  resource_group_name      = azurerm_resource_group.example.name
-  location                 = azurerm_resource_group.example.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
+
+# Create an Azure Databricks Workspace
+resource "azurerm_databricks_workspace" "example" {
+  name                = var.databricks_workspace_name
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
+  sku                 = "standard" # Change this to your desired SKU
 }
 
-resource "azurerm_storage_container" "example" {
-  name                  = "dataplatform_example-container"
-  storage_account_name  = dataplatform_azurerm_storage_account.example.name
-  container_access_type = "private"
+
+# Create an Azure Data Factory
+resource "azurerm_data_factory" "example" {
+  name                = var.data_factory_name
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
 }
 
-output "storage_account_key" {
-  value = azurerm_storage_account.example.primary_access_key
+
+# Create an Azure Linux Virtual Machine
+resource "azurerm_linux_virtual_machine" "example" {
+  name                = var.vm_name
+  resource_group_name = azurerm_resource_group.example.name
+  location            = azurerm_resource_group.example.location
+  size                = "Standard_DS2_v2" # Change this to your desired VM size
+  admin_username      = "adminuser"
+  admin_password      = "Password1234!" # Replace with your desired password
+  disable_password_authentication = false
+  network_interface_ids = [Testazurerm_network_interface.example.id]
+
+
+  os_disk {
+    storage_account_type = "Standard_LRS"
+    caching              = "ReadWrite"
+  }
+
+
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "UbuntuServer"
+    sku       = "18.04-LTS"
+    version   = "latest"
+  }
+
+
+  custom_data = base64encode("apt-get update && apt-get install -y apache2")
 }
 
-output "storage_account_id" {
-  value = azurerm_storage_account.example.id
+
+# Create a network interface for the VM
+resource "Testazurerm_network_interface" "example" {
+  name                = "example-nic"
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
+
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.example.id
+    private_ip_address_allocation = "Dynamic"
+  }
+}
+
+
+# Define a virtual network and subnet for the VM
+resource "azurerm_virtual_network" "example" {
+  name                = "example-network"
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
+  address_space       = ["10.0.0.0/16"]
+}
+
+
+resource "azurerm_subnet" "example" {
+  name                 = "example-subnet"
+  resource_group_name  = azurerm_resource_group.example.name
+  virtual_network_name = azurerm_virtual_network.example.name
+  address_prefixes     = ["10.0.2.0/24"]
 }
